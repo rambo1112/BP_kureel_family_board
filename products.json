@@ -1,0 +1,26 @@
+[
+  {
+    "id": "p01",
+    "name": "Wireless Mouse",
+    "price": 29.99,
+    "inStock": true
+  },
+  {
+    "id": "p02",
+    "name": "Mechanical Keyboard",
+    "price": 89.50,
+    "inStock": true
+  },
+  {
+    "id": "p03",
+    "name": "4K Monitor",
+    "price": 349.00,
+    "inStock": false
+  },
+  {
+    "id": "p04",
+    "name": "Webcam",
+    "price": 55.00,
+    "inStock": true
+  }
+]
