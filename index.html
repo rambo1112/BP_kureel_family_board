@@ -3,62 +3,509 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON Loader</title>
+    <title>INCOIS | Ocean Hazard Reporting Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Coastal Calm -->
+    <!-- Application Structure Plan: The SPA is designed as a dynamic, single-page dashboard to simulate a real-time monitoring tool. The structure prioritizes immediate situational awareness, starting with a top-level summary, followed by the core interactive map. Below the map, users can drill down into live data feeds and aggregated analytics charts. A 'How It Works' section visually explains the data flow, and finally, contextual background information is provided. This top-down, from-summary-to-detail structure allows different user roles (e.g., a manager needing a quick overview vs. an analyst needing deep data) to efficiently access information at their required depth. Navigation is handled by smooth scrolling, keeping the user in a single, cohesive environment. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Geographic distribution of hazard reports. Goal: Organize/Relationships. Viz: Simulated interactive map with CSS points. Interaction: Filtering by report type (citizen vs. social media) and time. Justification: Provides immediate, intuitive spatial context crucial for disaster response. Method: HTML/CSS for map shape and JS for point rendering/filtering.
+        - Report Info: Volume of reports by hazard type. Goal: Compare. Viz: Bar Chart. Interaction: Hover for details, filter by time period. Justification: Clearly shows which hazards are most prevalent. Library: Chart.js.
+        - Report Info: Social media sentiment. Goal: Inform/Compare. Viz: Donut Chart. Interaction: Hover for percentages. Justification: Gives a quick pulse on public reaction and concern. Library: Chart.js.
+        - Report Info: Platform data flow. Goal: Organize. Viz: HTML/CSS flowchart diagram. Interaction: Hover to highlight stages. Justification: Simplifies a complex technical process for non-technical stakeholders. Method: Tailwind CSS (Flexbox/Grid).
+        - Report Info: Real-time report stream. Goal: Inform. Viz: Dynamically updating list. Interaction: Automatic new entries. Justification: Creates a sense of a live, active system. Method: JS DOM manipulation.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; background-color: #f4f4f4; color: #333; padding: 20px; }
-        #container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #2c3e50; }
-        #product-list { list-style: none; padding: 0; }
-        #product-list li { padding: 10px; border-bottom: 1px solid #eee; }
-        #product-list li:last-child { border-bottom: none; }
-        .error { color: #e74c3c; font-weight: bold; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s ease;
+        }
+        .nav-link.active, .nav-link:hover {
+            color: #0d9488;
+        }
+        .map-point {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .map-point:hover .tooltip {
+            display: block;
+        }
+        .tooltip {
+            display: none;
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            padding: 4px 8px;
+            background-color: #1f2937;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        .pulse {
+            animation: pulse-animation 2s infinite;
+        }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .map-bg {
+            position: absolute;
+            width: 80%;
+            height: 90%;
+            top: 5%;
+            left: 10%;
+            background-color: #99d9de;
+            clip-path: polygon(29% 0, 81% 0, 100% 19%, 100% 41%, 86% 54%, 73% 86%, 53% 100%, 25% 91%, 0 54%, 0 16%);
+        }
+        .feed-item {
+            animation: slide-in 0.5s ease-out;
+        }
+        @keyframes slide-in {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
-<body>
+<body class="text-slate-700">
 
-    <div id="container">
-        <h1>Our Products</h1>
-        <p><em>Products listed below are loaded dynamically from a JSON file.</em></p>
-        <ul id="product-list">
-            </ul>
-    </div>
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 border-b border-slate-200">
+        <nav class="container mx-auto px-4 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl text-teal-600">🌊</span>
+                <h1 class="text-lg md:text-xl font-bold text-slate-800">Ocean Hazard Reporting Platform</h1>
+            </div>
+            <div class="hidden lg:flex space-x-6 text-sm font-medium">
+                <a href="#dashboard" class="nav-link active">Dashboard</a>
+                <a href="#analytics" class="nav-link">Analytics</a>
+                <a href="#how-it-works" class="nav-link">How It Works</a>
+                <a href="#about" class="nav-link">About</a>
+            </div>
+            <div class="lg:hidden">
+                 <select onchange="document.getElementById(this.value).scrollIntoView({ behavior: 'smooth' });" class="bg-white border border-slate-300 rounded-md py-1 px-2 text-sm">
+                    <option value="dashboard">Dashboard</option>
+                    <option value="analytics">Analytics</option>
+                    <option value="how-it-works">How It Works</option>
+                    <option value="about">About</option>
+                </select>
+            </div>
+        </nav>
+    </header>
 
-    <script>
-        // This script will run after the HTML is parsed
-        const productList = document.getElementById('product-list');
+    <main class="container mx-auto px-4 lg:px-8 py-8 md:py-12">
+        
+        <section id="overview" class="mb-12">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">Live Ocean Hazard Monitoring</h2>
+                <p class="text-slate-500 max-w-3xl mx-auto">This dashboard provides a conceptual demonstration of an integrated platform for crowdsourced hazard reporting and social media analytics, enhancing situational awareness along India's coastline.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-semibold text-slate-500">Active High-Priority Alerts</h3>
+                    <p id="active-alerts" class="text-4xl font-bold text-red-500">3</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-semibold text-slate-500">New Reports (Last 24h)</h3>
+                    <p id="new-reports" class="text-4xl font-bold text-teal-600">142</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-semibold text-slate-500">Regions Under Watch</h3>
+                    <p id="regions-watch" class="text-4xl font-bold text-amber-500">7</p>
+                </div>
+            </div>
+        </section>
 
-        // Use the fetch API to get the JSON file
-        fetch('products.json')
-            .then(response => {
-                // Check if the request was successful
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+        <section id="dashboard" class="mb-12 bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-sm border border-slate-200">
+             <div class="mb-6">
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Real-Time Hazard Map</h2>
+                <p class="text-slate-500 max-w-3xl">This interactive map visualizes incoming data from citizen reports and social media. Use the filters to explore different data layers and the timeline to see how events unfold. This tool helps authorities quickly identify emerging hotspots and verify official warnings with on-the-ground observations.</p>
+            </div>
+            <div class="flex flex-col md:flex-row gap-8">
+                <div class="w-full md:w-3/4 h-[50vh] md:h-[60vh] bg-slate-100 rounded-lg relative overflow-hidden">
+                    <div class="map-bg"></div>
+                    <div id="map-points-container"></div>
+                    <div class="absolute bottom-2 left-2 bg-white/70 p-2 rounded-md text-xs backdrop-blur-sm">
+                        <h4 class="font-bold mb-1">Legend</h4>
+                        <div class="flex items-center space-x-2"><div class="w-3 h-3 bg-blue-500 rounded-full"></div><span>Citizen Report</span></div>
+                        <div class="flex items-center space-x-2"><div class="w-3 h-3 bg-amber-500 rounded-full"></div><span>Social Media Trend</span></div>
+                        <div class="flex items-center space-x-2"><div class="w-3 h-3 bg-red-500 rounded-full pulse"></div><span>Verified Hotspot</span></div>
+                    </div>
+                </div>
+                <div class="w-full md:w-1/4 flex flex-col space-y-4">
+                    <div>
+                        <label class="font-semibold text-sm mb-2 block">Data Layers</label>
+                        <div class="space-y-2">
+                             <button data-type="all" class="filter-btn bg-teal-600 text-white w-full py-2 rounded-md text-sm">Show All</button>
+                             <button data-type="citizen" class="filter-btn bg-white border border-slate-300 w-full py-2 rounded-md text-sm">Citizen Reports</button>
+                             <button data-type="social" class="filter-btn bg-white border border-slate-300 w-full py-2 rounded-md text-sm">Social Media</button>
+                             <button data-type="hotspot" class="filter-btn bg-white border border-slate-300 w-full py-2 rounded-md text-sm">Verified Hotspots</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="timeline" class="font-semibold text-sm mb-2 block">Event Timeline</label>
+                        <input id="timeline" type="range" min="0" max="100" value="100" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-500 mt-1">
+                            <span>-24h</span>
+                            <span>Now</span>
+                        </div>
+                    </div>
+                    <div class="flex-grow bg-slate-50 p-3 rounded-md border border-slate-200">
+                        <h4 class="font-semibold text-sm mb-2">Live Citizen Reports Feed</h4>
+                        <div id="live-feed" class="h-48 overflow-y-auto space-y-2 text-xs">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="analytics" class="mb-12">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Data Analytics & Trends</h2>
+                <p class="text-slate-500 max-w-3xl mx-auto">This section provides an aggregated view of the collected data. By analyzing report types, public sentiment, and trending keywords, response agencies can better understand the scale and nature of a hazard event, allocate resources effectively, and combat misinformation.</p>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-semibold text-slate-800">Reports by Hazard Type</h3>
+                        <select id="time-filter" class="text-xs border border-slate-200 rounded px-2 py-1">
+                            <option value="24h">Last 24h</option>
+                            <option value="7d">Last 7d</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="hazardChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h3 class="font-semibold text-slate-800 mb-4">Social Media Sentiment Analysis</h3>
+                    <div class="chart-container">
+                        <canvas id="sentimentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="how-it-works" class="mb-12">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">How The Platform Works</h2>
+                <p class="text-slate-500 max-w-3xl mx-auto">The platform integrates multiple data sources into a single, actionable intelligence stream. This process involves citizen participation, automated data analysis, and seamless delivery of insights to disaster management authorities for faster, more informed decision-making.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center items-start">
+                <div class="space-y-4">
+                    <h3 class="font-semibold text-lg text-teal-700">1. Data Collection</h3>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                        <div class="text-2xl mb-2">📱</div>
+                        <h4 class="font-semibold">Citizen Reports</h4>
+                        <p class="text-sm text-slate-500">Users submit geotagged photos, videos, and observations via web/mobile app.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                        <div class="text-2xl mb-2">💬</div>
+                        <h4 class="font-semibold">Social Media</h4>
+                        <p class="text-sm text-slate-500">Public posts from platforms like Twitter and Facebook are monitored.</p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-center text-4xl text-slate-300 h-full mt-8 md:mt-0">→</div>
+                 <div class="space-y-4">
+                    <h3 class="font-semibold text-lg text-teal-700">2. Processing & Analysis</h3>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                        <div class="text-2xl mb-2">⚙️</div>
+                        <h4 class="font-semibold">Data Aggregation</h4>
+                        <p class="text-sm text-slate-500">All incoming data is stored and categorized in a central database.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                        <div class="text-2xl mb-2">🧠</div>
+                        <h4 class="font-semibold">NLP Engine</h4>
+                        <p class="text-sm text-slate-500">Text is analyzed for keywords, sentiment, and relevance to hazards.</p>
+                    </div>
+                </div>
+                 <div class="flex items-center justify-center text-4xl text-slate-300 h-full mt-8 md:mt-0 md:col-start-2">↓</div>
+                 <div class="space-y-4 md:col-start-3">
+                    <h3 class="font-semibold text-lg text-teal-700">3. Visualization & Alerting</h3>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                        <div class="text-2xl mb-2">📊</div>
+                        <h4 class="font-semibold">Dynamic Dashboard</h4>
+                        <p class="text-sm text-slate-500">Visualizes data on maps and charts for situational awareness.</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                        <div class="text-2xl mb-2">🚨</div>
+                        <h4 class="font-semibold">Alerts & Reports</h4>
+                        <p class="text-sm text-slate-500">Generates insights for emergency response agencies and officials.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="bg-white p-8 rounded-lg shadow-sm border border-slate-200">
+             <div class="max-w-4xl mx-auto">
+                 <h2 class="text-2xl font-bold text-slate-800 mb-4 text-center">About This Initiative</h2>
+                 <div class="space-y-6 text-slate-600 leading-relaxed">
+                     <p>The Indian National Centre for Ocean Information Services (INCOIS), under the Ministry of Earth Sciences, provides critical ocean information and advisory services. These services support disaster risk reduction and maritime safety, covering hazards like tsunamis, storm surges, and high waves to help authorities and coastal communities make informed decisions during emergencies.</p>
+                     <p>India’s vast coastline is vulnerable to numerous ocean hazards. While agencies like INCOIS provide early warnings using advanced technology, there is often a delay or lack of real-time, on-the-ground reports from citizens. Furthermore, valuable insights from public discussions on social media during these events remain largely untapped. This platform concept addresses the need for a unified system that bridges this gap, enabling citizens to contribute observations and allowing for the analysis of social media trends to build a comprehensive, real-time picture of an evolving hazard event.</p>
+                 </div>
+             </div>
+        </section>
+
+    </main>
+    
+    <footer class="bg-slate-800 text-slate-300 mt-12">
+        <div class="container mx-auto px-4 lg:px-8 py-6 text-center text-sm">
+            <p>&copy; 2025 Indian National Centre for Ocean Information Services (INCOIS). All Rights Reserved.</p>
+            <p class="text-xs text-slate-400 mt-1">This is a conceptual demonstration application.</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const mockData = {
+        mapPoints: [
+            { id: 1, type: 'citizen', top: '70%', left: '70%', hazard: 'High Waves', time: 5 },
+            { id: 2, type: 'social', top: '85%', left: '75%', hazard: 'Coastal Flooding', time: 10 },
+            { id: 3, type: 'hotspot', top: '78%', left: '72%', hazard: 'Storm Surge', time: 15 },
+            { id: 4, type: 'citizen', top: '50%', left: '20%', hazard: 'Unusual Tides', time: 20 },
+            { id: 5, type: 'social', top: '45%', left: '15%', hazard: 'High Waves', time: 30 },
+            { id: 6, type: 'citizen', top: '90%', left: '50%', hazard: 'Coastal Flooding', time: 40 },
+            { id: 7, type: 'social', top: '20%', left: '30%', hazard: 'Tsunami Rumor', time: 55 },
+            { id: 8, type: 'hotspot', top: '48%', left: '18%', hazard: 'Verified Damage', time: 60 },
+            { id: 9, type: 'citizen', top: '30%', left: '85%', hazard: 'High Waves', time: 80 },
+            { id: 10, type: 'social', top: '25%', left: '88%', hazard: 'High Waves', time: 95 },
+        ],
+        liveFeed: [
+            { location: 'Puri, OD', hazard: 'High Waves' },
+            { location: 'Chennai, TN', hazard: 'Minor Coastal Flooding' },
+            { location: 'Kochi, KL', hazard: 'Unusual Tides' },
+            { location: 'Mumbai, MH', hazard: 'High Wave warning' },
+            { location: 'Vizag, AP', hazard: 'Strong Currents' },
+            { location: 'Mangalore, KA', hazard: 'Coastal Erosion' }
+        ],
+        charts: {
+            '24h': {
+                hazards: {
+                    labels: ['High Waves', 'Coastal Flooding', 'Unusual Tides', 'Storm Surge'],
+                    data: [65, 32, 25, 20],
+                },
+                sentiment: {
+                    labels: ['Concern', 'Neutral', 'Positive/Safe'],
+                    data: [70, 22, 8],
                 }
-                // Parse the JSON data from the response
-                return response.json();
-            })
-            .then(products => {
-                // 'products' is now a JavaScript array of objects
-                // If the list is empty, display a message
-                if (products.length === 0) {
-                    productList.innerHTML = '<li>No products found.</li>';
-                    return;
+            },
+            '7d': {
+                hazards: {
+                    labels: ['High Waves', 'Coastal Flooding', 'Unusual Tides', 'Storm Surge'],
+                    data: [450, 210, 150, 95],
+                },
+                sentiment: {
+                     labels: ['Concern', 'Neutral', 'Positive/Safe'],
+                    data: [65, 25, 10],
                 }
+            }
+        }
+    };
 
-                // Create HTML list items for each product
-                const productItems = products.map(product => {
-                    return `<li><strong>${product.name}</strong> - $${product.price}</li>`;
-                }).join(''); // Join the array of strings into one string
+    let hazardChart, sentimentChart;
+    
+    const chartColors = {
+        hazardBg: 'rgba(13, 148, 136, 0.2)',
+        hazardBorder: 'rgba(13, 148, 136, 1)',
+        sentiment: ['#f59e0b', '#64748b', '#10b981'],
+    };
 
-                // Update the list in the DOM
-                productList.innerHTML = productItems;
-            })
-            .catch(error => {
-                // Handle any errors that occurred during the fetch
-                console.error('Fetch error:', error);
-                productList.innerHTML = `<li class="error">Could not load products. Please check if products.json exists and is valid.</li>`;
+    function createHazardChart(period = '24h') {
+        const ctx = document.getElementById('hazardChart').getContext('2d');
+        const chartData = mockData.charts[period].hazards;
+        
+        if (hazardChart) hazardChart.destroy();
+
+        hazardChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Number of Reports',
+                    data: chartData.data,
+                    backgroundColor: chartColors.hazardBg,
+                    borderColor: chartColors.hazardBorder,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    function createSentimentChart(period = '24h') {
+        const ctx = document.getElementById('sentimentChart').getContext('2d');
+        const chartData = mockData.charts[period].sentiment;
+
+        if(sentimentChart) sentimentChart.destroy();
+        
+        sentimentChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    data: chartData.data,
+                    backgroundColor: chartColors.sentiment,
+                    borderColor: '#f8fafc',
+                    borderWidth: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    }
+    
+    const mapContainer = document.getElementById('map-points-container');
+    function renderMapPoints() {
+        mapContainer.innerHTML = '';
+        mockData.mapPoints.forEach(p => {
+            const pointEl = document.createElement('div');
+            pointEl.className = 'map-point';
+            pointEl.dataset.type = p.type;
+            pointEl.dataset.time = p.time;
+            pointEl.style.top = p.top;
+            pointEl.style.left = p.left;
+
+            let pointClasses = 'w-4 h-4';
+            if(p.type === 'citizen') pointClasses += ' bg-blue-500';
+            else if(p.type === 'social') pointClasses += ' bg-amber-500';
+            else if(p.type === 'hotspot') pointClasses += ' bg-red-500 pulse w-5 h-5';
+            
+            pointEl.innerHTML = `<div class="${pointClasses} rounded-full border-2 border-white shadow-lg"></div><div class="tooltip">${p.hazard}</div>`;
+
+            mapContainer.appendChild(pointEl);
+        });
+    }
+    
+    function filterMap() {
+        const activeFilter = document.querySelector('.filter-btn.bg-teal-600').dataset.type;
+        const timelineValue = document.getElementById('timeline').value;
+        const allPoints = document.querySelectorAll('.map-point');
+
+        allPoints.forEach(p => {
+            const typeMatch = activeFilter === 'all' || p.dataset.type === activeFilter;
+            const timeMatch = parseInt(p.dataset.time) <= timelineValue;
+            if(typeMatch && timeMatch) {
+                p.style.display = 'block';
+            } else {
+                p.style.display = 'none';
+            }
+        });
+    }
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.remove('bg-teal-600', 'text-white');
+                b.classList.add('bg-white', 'border-slate-300');
             });
-    </script>
+            btn.classList.add('bg-teal-600', 'text-white');
+            btn.classList.remove('bg-white', 'border-slate-300');
+            filterMap();
+        });
+    });
 
+    document.getElementById('timeline').addEventListener('input', filterMap);
+
+    document.getElementById('time-filter').addEventListener('change', (e) => {
+        createHazardChart(e.target.value);
+    });
+
+    const liveFeedContainer = document.getElementById('live-feed');
+    let feedIndex = 0;
+    function addLiveReport() {
+        const report = mockData.liveFeed[feedIndex % mockData.liveFeed.length];
+        const item = document.createElement('div');
+        item.className = 'feed-item bg-white p-2 rounded border border-slate-200';
+        item.innerHTML = `<p class="font-semibold">${report.hazard}</p><p class="text-slate-500">${report.location}</p>`;
+        liveFeedContainer.prepend(item);
+        if (liveFeedContainer.children.length > 10) {
+            liveFeedContainer.lastChild.remove();
+        }
+        feedIndex++;
+    }
+
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sections = document.querySelectorAll('main section[id]');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                });
+            }
+        });
+    }, { rootMargin: '-50% 0px -50% 0px' });
+
+    sections.forEach(section => observer.observe(section));
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelector(link.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+        });
+    });
+
+    function updateStats() {
+        document.getElementById('active-alerts').textContent = Math.floor(3 + Math.random() * 3);
+        document.getElementById('new-reports').textContent = Math.floor(142 + Math.random() * 20);
+        document.getElementById('regions-watch').textContent = Math.floor(7 + Math.random() * 2);
+    }
+
+    createHazardChart();
+    createSentimentChart();
+    renderMapPoints();
+    filterMap();
+    setInterval(addLiveReport, 3000);
+    setInterval(updateStats, 5000);
+    addLiveReport();
+});
+</script>
 </body>
 </html>
